@@ -14,4 +14,4 @@ This script installs Docker, Docker Compose, configures the system timezone, and
 Run this script directly from GitHub:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install-docker.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/subhrapratimde/docker-installer-set-static-ip/main/install-docker.sh)
