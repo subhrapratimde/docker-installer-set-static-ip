@@ -1,13 +1,12 @@
 #!/bin/bash
 
-# Docker & System Configuration Script for Ubuntu
-# Author: Subho
+set -e
 
 echo "🔄 Updating package list..."
 sudo apt-get update -y
 
 echo "📦 Installing prerequisites..."
-sudo apt-get install -y ca-certificates curl gnupg lsb-release tzdata network-manager
+sudo apt-get install -y ca-certificates curl gnupg lsb-release tzdata network-manager dos2unix
 
 echo "📁 Creating keyring directory..."
 sudo install -m 0755 -d /etc/apt/keyrings
@@ -17,9 +16,9 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o 
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
 echo "➕ Adding Docker APT repository..."
+# Force jammy for now since noble is unsupported
 echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 echo "🔄 Updating package list again..."
@@ -37,23 +36,22 @@ sudo usermod -aG docker "$USER"
 sudo systemctl restart docker
 
 echo "✅ Docker Status:"
-sudo systemctl status docker
+sudo systemctl status docker || true
 
 echo "🐳 Docker Version:"
-docker --version
+docker --version || echo "Docker not found."
 
 echo "⚙️ Installing Docker Compose..."
 sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
   -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
-sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 echo "🌐 Timezone Configuration"
 read -p "Enter your timezone (e.g., Asia/Kolkata) [default: Asia/Kolkata]: " tz_input
 TZ=${tz_input:-Asia/Kolkata}
-sudo timedatectl set-timezone "$TZ"
-echo "✅ Timezone set to:"
-timedatectl
+sudo timedatectl set-timezone "$TZ" || echo "❌ Failed to set timezone."
+echo "✅ Timezone set to: $(timedatectl | grep 'Time zone')"
 
 echo "🌐 Network Configuration (Static IP Setup)"
 
@@ -61,7 +59,6 @@ echo "🌐 Network Configuration (Static IP Setup)"
 IFACE=$(nmcli device status | awk '$2 == "ethernet" && $3 == "connected" {print $1}' | head -n 1)
 echo "🖧 Detected interface: $IFACE"
 
-# Ask user for static IP and gateway
 read -p "Enter static IP address with CIDR (e.g., 192.168.1.10/24): " static_ip
 read -p "Enter gateway IP (e.g., 192.168.1.1): " gateway_ip
 
@@ -70,7 +67,7 @@ if [ -f /etc/netplan/01-netcfg.yaml ]; then
   sudo cp /etc/netplan/01-netcfg.yaml /etc/netplan/01-netcfg.yaml.bak
 fi
 
-# Create new netplan config
+# Write new config
 sudo tee /etc/netplan/01-netcfg.yaml > /dev/null <<EOF
 network:
   version: 2
@@ -88,7 +85,7 @@ network:
 EOF
 
 sudo chmod 600 /etc/netplan/01-netcfg.yaml
-echo "✅ New Netplan config written."
+echo "✅ Netplan configuration saved."
 
 echo "📡 Applying network settings..."
 sudo netplan apply
@@ -106,6 +103,6 @@ if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
 fi
 
 echo "🐙 Docker Compose Version:"
-docker-compose --version
+docker-compose --version || echo "Docker Compose not found."
 
 echo "✅ Script completed successfully."
